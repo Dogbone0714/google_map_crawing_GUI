@@ -144,3 +144,60 @@ def get_comment(store_id):
 
     return google_comment_df
 
+# 新增景點所在縣市功能
+def get_spot_city(spot_name):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
+    }
+    url = f"https://www.google.com.tw/maps/search/{spot_name}"
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "lxml")
+    
+    # 提取完整地址資訊
+    address_tag = soup.find("meta", itemprop="address")
+    address = address_tag.get("content", "") if address_tag else "無法獲取地址"
+    
+    # 嘗試提取縣市（假設地址格式為「台北市信義區XXX」或「台中市XXX」）
+    city_match = re.search(r"[\u4e00-\u9fa5]{2,3}(市|縣)", address)
+    city = city_match.group() if city_match else "無法判斷縣市"
+    
+    return city
+
+# 修改景點介紹功能以包含縣市資訊
+def get_spot_info(spot_name):
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; WOW64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36"
+    }
+    url = f"https://www.google.com.tw/maps/search/{spot_name}"
+    response = requests.get(url, headers=headers)
+    soup = BeautifulSoup(response.text, "lxml")
+    
+    # 提取景點名稱
+    title = soup.find("h1", class_="fontHeadlineLarge").text if soup.find("h1", class_="fontHeadlineLarge") else "無法獲取名稱"
+    
+    # 提取簡介描述
+    description = None
+    description_tag = soup.find("meta", attrs={"name": "description"})
+    if description_tag:
+        description = description_tag.get("content", "").split(".")[0]  # 通常第一句是簡介
+    
+    # 提取評分和評論數
+    rating = soup.find("span", class_="fontBodyLarge").text if soup.find("span", class_="fontBodyLarge") else "無評分"
+    review_count = re.search(r"\d+ 則評論", response.text)
+    review_count = review_count.group() if review_count else "無評論數"
+    
+    # 提取所在縣市
+    city = get_spot_city(spot_name)
+    
+    # 整理為字典
+    spot_info = {
+        "景點名稱": title,
+        "簡介": description,
+        "評分": rating,
+        "評論數": review_count,
+        "縣市": city
+    }
+    
+    return spot_info
